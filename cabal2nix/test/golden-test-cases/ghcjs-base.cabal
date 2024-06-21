@@ -143,8 +143,27 @@ library
                    deepseq              >= 1.3  && < 1.6,
                    dlist                >= 0.7  && < 1.1
   default-language: Haskell2010
+--  if !arch(javascript)
+--    buildable: False
+
+  if os(linux)
+     build-depends: zzz-linux
+  if os(darwin)
+     build-depends: zzz-darwin
+
   if !arch(javascript)
-    buildable: False
+     build-depends: zzz-nojs
+  if arch(javascript)
+     build-depends: zzz-js
+
+  if arch(x86_64)
+     if os(linux)
+        build-depends: yes-yes
+     else
+        build-depends: yes-no
+   else
+    build-depends: no
+
 
 test-suite tests
   type:           exitcode-stdio-1.0

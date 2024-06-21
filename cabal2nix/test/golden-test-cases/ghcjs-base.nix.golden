@@ -12,7 +12,10 @@ mkDerivation {
   libraryHaskellDepends = [
     aeson attoparsec base binary bytestring containers deepseq dlist
     ghc-prim hashable primitive scientific text time transformers
-    unordered-containers vector (if !(Arch JavaScript) then () else [])
+    unordered-containers vector (if OS Linux then (zzz-linux) else [])
+    (if OS OSX then (zzz-darwin) else [])
+    (if !(Arch JavaScript) then (zzz-nojs) else [])
+    (if Arch JavaScript then (zzz-js) else [])
   ];
   testHaskellDepends = [
     HUnit QuickCheck array base bytestring deepseq directory ghc-prim
