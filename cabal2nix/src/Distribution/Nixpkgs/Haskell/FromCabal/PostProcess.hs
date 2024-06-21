@@ -28,9 +28,9 @@ postProcess deriv =
  $ deriv
 
 fixGtkBuilds :: Derivation -> Derivation
-fixGtkBuilds drv = drv & dependencies . pkgconfig %~ Set.filter (not . collidesWithHaskellName)
-                       & dependencies . system %~ Set.filter (not . collidesWithHaskellName)
-                       & dependencies . tool %~ Set.filter (not . collidesWithHaskellName)
+fixGtkBuilds drv = drv & dependencies . condTreeData . pkgconfig %~ Set.filter (not . collidesWithHaskellName)
+                       & dependencies . condTreeData . system %~ Set.filter (not . collidesWithHaskellName)
+                       & dependencies . condTreeData . tool %~ Set.filter (not . collidesWithHaskellName)
   where
     collidesWithHaskellName :: Binding -> Bool
     collidesWithHaskellName b = case buildDeps Map.!? view localName b of
@@ -41,7 +41,7 @@ fixGtkBuilds drv = drv & dependencies . pkgconfig %~ Set.filter (not . collidesW
     myName = ident # unPackageName (packageName drv)
 
     buildDeps :: Map Identifier Path
-    buildDeps = Map.delete myName (toMapOf (dependencies . haskell . to Set.toList . traverse . binding . ifolded) drv)
+    buildDeps = Map.delete myName (toMapOf (dependencies . condTreeData . haskell . to Set.toList . traverse . binding . ifolded) drv)
 
 -- Per https://github.com/haskell/cabal/issues/5412 hvr considers
 -- `build-depends` providing executables an accident, and fragile one at that,
@@ -62,7 +62,7 @@ fixBuildDependsForTools = foldr (.) id
   [ fmap snd $ runState $ do
       needs <- use $ cloneLens c . haskell . contains p
       cloneLens c . tool . contains p ||= needs
-  | (c :: ALens' Derivation BuildInfo) <- [ testDepends, benchmarkDepends ]
+  | (c :: ALens' Derivation BuildInfo) <- [ testDepends . condTreeData, benchmarkDepends . condTreeData ]
   , p <- self <$> [ "hspec-discover"
                   , "tasty-discover"
                   , "hsx2hs"
@@ -71,6 +71,8 @@ fixBuildDependsForTools = foldr (.) id
   ]
 
 hooks :: [(PackageVersionConstraint, Derivation -> Derivation)]
+hooks = []
+{-
 hooks =
   [ ("Agda < 2.5", set (executableDepends . tool . contains (pkg "emacs")) True . set phaseOverrides agdaPostInstall)
   , ("Agda >= 2.5 && < 2.6", set (executableDepends . tool . contains (pkg "emacs")) True . set phaseOverrides agda25PostInstall)
@@ -184,7 +186,7 @@ hooks =
   , ("zip-archive >= 0.3.1 && < 0.3.2.3", over (testDepends . tool) (Set.union (Set.fromList [pkg "zip", pkg "unzip"])))   -- https://github.com/jgm/zip-archive/issues/35
   , ("zip-archive >= 0.4", set (testDepends . tool . contains (pkg "which")) True)
   ]
-
+-}
 pkg :: Identifier -> Binding
 pkg i = binding # (i, path # ["pkgs",i])
 
@@ -213,8 +215,8 @@ replace old new bs
                                          ])
 
 gtk3Hook :: Derivation -> Derivation    -- https://github.com/NixOS/cabal2nix/issues/145
-gtk3Hook = set (libraryDepends . pkgconfig . contains (pkg "gtk3")) True
-         . over (libraryDepends . pkgconfig) (Set.filter (\b -> view localName b /= "gtk3"))
+gtk3Hook = set (libraryDepends . condTreeData . pkgconfig . contains (pkg "gtk3")) True
+         . over (libraryDepends . condTreeData . pkgconfig) (Set.filter (\b -> view localName b /= "gtk3"))
 
 hfusePreConfigure :: String
 hfusePreConfigure = unlines
@@ -238,8 +240,8 @@ gfPhaseOverrides = unlines
   ]
 
 wxcHook :: Derivation -> Derivation
-wxcHook drv = drv & libraryDepends . system %~ Set.union (Set.fromList [pkg "libGL", bind "pkgs.xorg.libX11"])
-                  & libraryDepends . pkgconfig . contains (pkg "wxGTK") .~ True
+wxcHook drv = drv & libraryDepends . condTreeData . system %~ Set.union (Set.fromList [pkg "libGL", bind "pkgs.xorg.libX11"])
+                  & libraryDepends . condTreeData . pkgconfig . contains (pkg "wxGTK") .~ True
                   & phaseOverrides .~ wxcPostInstall (packageVersion drv)
                   & runHaddock .~ False
   where
@@ -309,11 +311,11 @@ stackOverrides = unlines
 -- Replace a binding for <package> to one to pkgs.gst_all_1.<package>
 giGstLibOverrides :: String -> Derivation -> Derivation
 giGstLibOverrides package
-  = over (libraryDepends . pkgconfig) (replace (nullBinding (ident # package)) (binding # (ident # package, path # ["pkgs","gst_all_1", ident # package])))
+  = over (libraryDepends . condTreeData . pkgconfig) (replace (nullBinding (ident # package)) (binding # (ident # package, path # ["pkgs","gst_all_1", ident # package])))
 
 giCairoPhaseOverrides :: Derivation -> Derivation
 giCairoPhaseOverrides = over phaseOverrides (++txt)
-                      . set (libraryDepends . pkgconfig . contains (pkg "cairo")) True
+                      . set (libraryDepends . condTreeData . pkgconfig . contains (pkg "cairo")) True
   where
     txt = unlines [ "preCompileBuildDriver = ''"
                   , "  PKG_CONFIG_PATH+=\":${lib.getDev cairo}/lib/pkgconfig\""
@@ -325,13 +327,13 @@ hfseventsOverrides :: Derivation -> Derivation
 hfseventsOverrides
   = set isLibrary True
   . set (metaSection . platforms) (Just $ Set.singleton (NixpkgsPlatformGroup (ident # "darwin")))
-  . set (libraryDepends . tool . contains (bind "pkgs.darwin.apple_sdk.frameworks.CoreServices")) True
-  . set (libraryDepends . system . contains (bind "pkgs.darwin.apple_sdk.frameworks.Cocoa")) True
-  . over (libraryDepends . haskell) (Set.union (Set.fromList (map bind ["self.base", "self.cereal", "self.mtl", "self.text", "self.bytestring"])))
+  . set (libraryDepends . condTreeData . tool . contains (bind "pkgs.darwin.apple_sdk.frameworks.CoreServices")) True
+  . set (libraryDepends . condTreeData . system . contains (bind "pkgs.darwin.apple_sdk.frameworks.Cocoa")) True
+  . over (libraryDepends . condTreeData . haskell) (Set.union (Set.fromList (map bind ["self.base", "self.cereal", "self.mtl", "self.text", "self.bytestring"])))
 
 opencvOverrides :: Derivation -> Derivation
 opencvOverrides = set phaseOverrides "hardeningDisable = [ \"bindnow\" ];"
-                . over (libraryDepends . pkgconfig) (replace (pkg "opencv") (pkg "opencv3"))
+                . over (libraryDepends . condTreeData . pkgconfig) (replace (pkg "opencv") (pkg "opencv3"))
 
 hspecCoreOverrides :: Derivation -> Derivation   -- https://github.com/hspec/hspec/issues/330
 hspecCoreOverrides = set phaseOverrides "testTarget = \"--test-option=--skip --test-option='Test.Hspec.Core.Runner.hspecResult runs specs in parallel'\";"
@@ -345,7 +347,7 @@ cabal2nixOverrides = set phaseOverrides $ unlines
   ]
 
 gtkglextHook :: Derivation -> Derivation
-gtkglextHook = over (libraryDepends . system) (Set.union (Set.fromList deps))
+gtkglextHook = over (libraryDepends . condTreeData . system) (Set.union (Set.fromList deps))
   where
     deps :: [Binding]
     deps = bind <$> [ "pkgs.gtk2"
@@ -375,8 +377,8 @@ pandocPre3110Overrides = set phaseOverrides postInstall
                           ]
 
 bustleOverrides :: Derivation -> Derivation
-bustleOverrides = set (libraryDepends . pkgconfig . contains "system-glib = pkgs.glib") True
-                . set (executableDepends . pkgconfig . contains "gio-unix = null") False
+bustleOverrides = set (libraryDepends . condTreeData . pkgconfig . contains "system-glib = pkgs.glib") True
+                . set (executableDepends . condTreeData . pkgconfig . contains "gio-unix = null") False
                 . set (metaSection . license) (Known "lib.licenses.lgpl21Plus")
                 . set (metaSection . hydraPlatforms) Nothing
 

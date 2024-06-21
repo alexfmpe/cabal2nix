@@ -24,3 +24,8 @@ TAGS
 .stack-work
 /*/src/highlight.js
 /*/src/style.css
+
+# nix
+result
+result-*
+.direnv

@@ -1,4 +1,8 @@
-{ pkgs ? import <nixpkgs> { }
+{ pkgs ? import (builtins.fetchTarball {
+    name = "release-24.05";
+    url = https://github.com/nixos/nixpkgs/archive/3e63890c62a81c96a4ce3c48fdc55c16f75c385e.tar.gz;
+    sha256 = "sha256:0gmmgxvhd14qfjp81q5kffmr31s7nmj3adxc678rxm6d18dxpdq2";
+  }) {}
 , ghcVersion ? pkgs.haskellPackages.ghc.version
 , withHls ? true
 }:
@@ -30,6 +34,7 @@ in pkgs.mkShell {
   packages = [
     ghc
     pkgs.cabal-install
+    pkgs.ghcid
     pkgs.haskell-ci
     (pkgs.lib.getLib pkgs.openssl)
   ] ++ pkgs.lib.optionals withHls [
