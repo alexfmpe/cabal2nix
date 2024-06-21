@@ -1,6 +1,7 @@
 -- cabal.project
 
 packages: ./*/*.cabal
+multi-repl: True
 tests: True
 
 package *

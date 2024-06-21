@@ -1,11 +1,12 @@
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TemplateHaskell       #-}
 
 module Distribution.Nixpkgs.Haskell.BuildInfo
   ( BuildInfo
-  , haskell, pkgconfig, system, tool, pPrintBuildInfo
+  , haskell, pkgconfig, system, tool, pPrintBuildInfo, condTreeData
   )
   where
 
@@ -13,7 +14,8 @@ import Control.DeepSeq
 import Control.Lens
 import Data.Semigroup as Sem
 import Data.Set ( Set )
-import Data.Set.Lens
+import Distribution.PackageDescription (CondTree, ConfVar, Dependency, FlagAssignment)
+import qualified Distribution.PackageDescription as PackageDescription
 import GHC.Generics ( Generic )
 import Language.Nix
 import Language.Nix.PrettyPrinting hiding ( (<>) )
@@ -41,10 +43,16 @@ instance Monoid BuildInfo where
 
 instance NFData BuildInfo
 
-pPrintBuildInfo :: String -> BuildInfo -> Doc
-pPrintBuildInfo prefix bi = vcat
-  [ setattr (prefix++"HaskellDepends") empty (setOf (haskell.folded.localName.ident) bi)
-  , setattr (prefix++"SystemDepends")  empty (setOf (system.folded.localName.ident) bi)
-  , setattr (prefix++"PkgconfigDepends") empty (setOf (pkgconfig.folded.localName.ident) bi)
-  , setattr (prefix++"ToolDepends") empty (setOf (tool.folded.localName.ident) bi)
+pPrintBuildInfo :: String -> FlagAssignment -> CondTree ConfVar [Dependency] BuildInfo -> Doc
+pPrintBuildInfo prefix cabalFlags tree = vcat
+  [ f _haskell   "HaskellDepends"
+  , f _system    "SystemDepends"
+  , f _pkgconfig "PkgconfigDepends"
+  , f _tool      "ToolDepends"
   ]
+  where
+    f field suffix = condTreeAttr (prefix++suffix) cabalFlags $ fmap field tree
+
+
+condTreeData :: Lens' (CondTree v c a) a
+condTreeData = lens PackageDescription.condTreeData $ \c a -> c { PackageDescription.condTreeData = a }

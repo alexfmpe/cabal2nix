@@ -12,12 +12,13 @@ import Language.Nix hiding ( quote )
 
 normalize :: Derivation -> Derivation
 normalize drv = drv
-  & over libraryDepends (normalizeBuildInfo (packageName drv))
-  & over executableDepends (normalizeBuildInfo (packageName drv))
-  & over testDepends (normalizeBuildInfo (packageName drv))
-  & over benchmarkDepends (normalizeBuildInfo (packageName drv))
+  & bi libraryDepends
+  & bi executableDepends
+  & bi testDepends
+  & bi benchmarkDepends
   & over metaSection normalizeMeta
   & jailbreak %~ (&& (packageName drv /= "jailbreak-cabal"))
+  where bi l = over (l . condTreeData) (normalizeBuildInfo (packageName drv))
 
 normalizeBuildInfo :: PackageName -> BuildInfo -> BuildInfo
 normalizeBuildInfo pname bi = bi
