@@ -9,6 +9,7 @@ module Distribution.Nixpkgs.Haskell.Derivation
   , cabalFlags, runHaddock, jailbreak, doCheck, doBenchmark, testFlags, testTargets, hyperlinkSource
   , enableLibraryProfiling, enableExecutableProfiling, phaseOverrides, editedCabalFile, metaSection
   , dependencies, setupDepends, benchmarkDepends, enableSeparateDataOutput, extraAttributes
+  , condTreeData
   )
   where
 
@@ -27,13 +28,13 @@ import Distribution.Nixpkgs.Haskell.BuildInfo
 import Distribution.Nixpkgs.Haskell.OrphanInstances ( )
 import Distribution.Nixpkgs.Meta
 import Distribution.Package
-import Distribution.PackageDescription ( FlagAssignment, unFlagName, unFlagAssignment )
+import Distribution.PackageDescription ( FlagAssignment, unFlagName, unFlagAssignment, CondTree, ConfVar, simplifyCondTree, lookupFlagAssignment, foldCondTree )
 import GHC.Generics ( Generic )
 import Language.Nix
 import Language.Nix.PrettyPrinting
 
--- | A represtation of Nix expressions for building Haskell packages.
--- The data type correspond closely to the definition of
+-- | A representation of Nix expressions for building Haskell packages.
+-- The data type corresponds closely to the definition of
 -- 'PackageDescription' from Cabal.
 
 data Derivation = MkDerivation
@@ -45,11 +46,11 @@ data Derivation = MkDerivation
   , _isExecutable               :: Bool
   , _extraFunctionArgs          :: Set Binding
   , _extraAttributes            :: Map String String
-  , _setupDepends               :: BuildInfo
-  , _libraryDepends             :: BuildInfo
-  , _executableDepends          :: BuildInfo
-  , _testDepends                :: BuildInfo
-  , _benchmarkDepends           :: BuildInfo
+  , _setupDepends               :: CondTree ConfVar [Dependency] BuildInfo --TODO: no tree here, but required by unified makeLensFor below
+  , _libraryDepends             :: CondTree ConfVar [Dependency] BuildInfo
+  , _executableDepends          :: CondTree ConfVar [Dependency] BuildInfo
+  , _testDepends                :: CondTree ConfVar [Dependency] BuildInfo
+  , _benchmarkDepends           :: CondTree ConfVar [Dependency] BuildInfo
   , _configureFlags             :: Set String
   , _cabalFlags                 :: FlagAssignment
   , _runHaddock                 :: Bool
@@ -119,15 +120,15 @@ instance Pretty Derivation where
       , onlyIf (_subpath /= ".") $ attr "postUnpack" postUnpack
       , onlyIf (_revision > 0) $ attr "revision" $ doubleQuotes $ int _revision
       , onlyIf (not (null _editedCabalFile) && _revision > 0) $ attr "editedCabalFile" $ string _editedCabalFile
-      , listattr "configureFlags" empty (map (show . show) renderedFlags)
+      -- , listattr "configureFlags" empty (map (show . show) renderedFlags) --TODO: no longer no-op
       , boolattr "isLibrary" (not _isLibrary || _isExecutable) _isLibrary
       , boolattr "isExecutable" (not _isLibrary || _isExecutable) _isExecutable
       , boolattr "enableSeparateDataOutput" _enableSeparateDataOutput _enableSeparateDataOutput
-      , onlyIf (_setupDepends /= mempty) $ pPrintBuildInfo "setup" _setupDepends
-      , onlyIf (_libraryDepends /= mempty) $ pPrintBuildInfo "library" _libraryDepends
-      , onlyIf (_executableDepends /= mempty) $ pPrintBuildInfo "executable" _executableDepends
-      , onlyIf (_testDepends /= mempty) $ pPrintBuildInfo "test" _testDepends
-      , onlyIf (_benchmarkDepends /= mempty) $ pPrintBuildInfo "benchmark" _benchmarkDepends
+      , condBuildInfo "setup" _setupDepends
+      , condBuildInfo "library" _libraryDepends
+      , condBuildInfo "executable" _executableDepends
+      , condBuildInfo "test" _testDepends
+      , condBuildInfo "benchmark" _benchmarkDepends
       , boolattr "enableLibraryProfiling" _enableLibraryProfiling _enableLibraryProfiling
       , boolattr "enableExecutableProfiling" _enableExecutableProfiling _enableExecutableProfiling
       , boolattr "doHaddock" (not _runHaddock) _runHaddock
@@ -144,9 +145,10 @@ instance Pretty Derivation where
     , rbrace
     ]
     where
+      deps = foldCondTree mempty (setOf (each . folded . localName . ident) . snd) Set.union Set.union . view dependencies
       inputs :: Set String
       inputs = Set.unions [ Set.map (view (localName . ident)) _extraFunctionArgs
-                          , setOf (dependencies . each . folded . localName . ident) drv
+                          , deps drv
                           , case derivKind _src of
                               Nothing -> mempty
                               Just derivKind' -> Set.fromList [derivKindFunction derivKind' | not isHackagePackage]
@@ -157,3 +159,5 @@ instance Pretty Derivation where
       isHackagePackage = "mirror://hackage/" `isPrefixOf` derivUrl _src
 
       postUnpack = string $ "sourceRoot+=/" ++ _subpath ++ "; echo source root reset to $sourceRoot"
+
+      condBuildInfo name bi = onlyIf (bi /= mempty) $ pPrintBuildInfo name _cabalFlags bi

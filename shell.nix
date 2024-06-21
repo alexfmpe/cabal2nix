@@ -60,6 +60,7 @@ in pkgs.mkShell {
   packages = [
     ghc
     pkgs.cabal-install
+    pkgs.ghcid
     (lib.getLib pkgs.openssl)
     # Needed to run `cabal2nix`:
     pkgs.nix-prefetch-scripts

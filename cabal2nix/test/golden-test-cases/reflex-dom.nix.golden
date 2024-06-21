@@ -1,0 +1,29 @@
+{ mkDerivation, aeson, android-activity, base, bytestring
+, containers, data-default, dependent-map, dependent-sum, ghc-prim
+, ghcjs-dom, jsaddle, jsaddle-warp, jsaddle-wasm
+, jsaddle-webkit2gtk, jsaddle-wkwebview, lens, lib, mtl, patch
+, prim-uniq, random, reflex, reflex-dom-core, text, time
+, transformers, vector
+}:
+mkDerivation {
+  pname = "reflex-dom";
+  version = "0.6.3.4";
+  sha256 = "deadbeef";
+  isLibrary = true;
+  isExecutable = true;
+  libraryHaskellDepends = builtins.concatLists [
+    [ base bytestring reflex reflex-dom-core text ]
+    lib.optionals
+    pkgs.stdenv.hostPlatform.isAndroid
+    [ aeson android-activity data-default jsaddle ]
+    lib.optionals
+    (!pkgs.stdenv.hostPlatform.isGhcjs)
+    [ jsaddle jsaddle-warp ]
+  ];
+  executableHaskellDepends = [
+    base containers dependent-map dependent-sum ghc-prim ghcjs-dom lens
+    mtl patch prim-uniq random reflex text time transformers vector
+  ];
+  description = "Functional Reactive Web Apps with Reflex";
+  license = lib.licenses.bsd3;
+}
