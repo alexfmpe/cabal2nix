@@ -17,6 +17,7 @@ import Data.Maybe
 import Data.Set ( Set )
 import qualified Data.Set as Set
 import Distribution.Nixpkgs.Fetch
+
 import Distribution.Nixpkgs.Haskell as Derivation
 import Distribution.Nixpkgs.Haskell.Constraint
 import Distribution.Nixpkgs.Haskell.FromCabal
@@ -27,7 +28,7 @@ import Distribution.Nixpkgs.Haskell.OrphanInstances ( )
 import Distribution.Nixpkgs.Meta
 import Distribution.Nixpkgs.PackageMap
 import Distribution.Package
-import Distribution.PackageDescription hiding ( options, extraLibs, buildTools, homepage )
+import Distribution.PackageDescription hiding ( condTreeData, options, extraLibs, buildTools, homepage )
 import Distribution.System
 import Distribution.Types.PackageVersionConstraint
 import Distribution.Text
@@ -169,7 +170,7 @@ main = do
                   & metaSection.homepage .~ ""
 
           overrides :: Doc
-          overrides = fcat $ punctuate space [ pPrint b <> semi | b <- Set.toList (view (dependencies . each) drv `Set.union` view extraFunctionArgs drv), not (isFromHackage b) ]
+          overrides = fcat $ punctuate space [ pPrint b <> semi | b <- Set.toList (view (dependencies . condTreeData . each) drv `Set.union` view extraFunctionArgs drv), not (isFromHackage b) ]
       return $ render $ nest 2 $
         hang (doubleQuotes (text  attr) <+> equals <+> text "callPackage") 2 (parens (pPrint drv)) <+> (braces overrides <> semi)
 

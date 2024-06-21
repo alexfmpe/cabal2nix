@@ -1,0 +1,29 @@
+{ mkDerivation, aeson, array, attoparsec, base, binary, bytestring
+, containers, deepseq, directory, dlist, ghc-prim, hashable, HUnit
+, lib, primitive, QuickCheck, quickcheck-unicode, random
+, scientific, test-framework, test-framework-hunit
+, test-framework-quickcheck2, text, time, transformers
+, unordered-containers, vector
+}:
+mkDerivation {
+  pname = "ghcjs-base";
+  version = "0.8.0.2";
+  sha256 = "deadbeef";
+  libraryHaskellDepends = [
+    aeson attoparsec base binary bytestring containers deepseq dlist
+    ghc-prim hashable primitive scientific text time transformers
+    unordered-containers vector (if OS Linux then (zzz-linux) else [])
+    (if OS OSX then (zzz-darwin) else [])
+    (if !(Arch JavaScript) then (zzz-nojs) else [])
+    (if Arch JavaScript then (zzz-js) else [])
+  ];
+  testHaskellDepends = [
+    HUnit QuickCheck array base bytestring deepseq directory ghc-prim
+    primitive quickcheck-unicode random test-framework
+    test-framework-hunit test-framework-quickcheck2 text
+    (if !(Arch JavaScript) then () else [])
+  ];
+  homepage = "http://github.com/ghcjs/ghcjs-base";
+  description = "base library for GHCJS";
+  license = lib.licenses.mit;
+}

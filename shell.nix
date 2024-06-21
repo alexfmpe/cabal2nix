@@ -1,8 +1,8 @@
 { pkgs ?
     import (builtins.fetchTarball {
-      # nixos-unstable 2025-04-23
-      url = "https://github.com/nixos/nixpkgs/archive/96d30055a2215e5c5a545872376137a5d063e804.tar.gz";
-      sha256 = "0xvzkpgc8qy4q252c3x399c8ikrks970c877s4i7vppnhxp08p8n";
+      # https://github.com/NixOS/nixpkgs/pull/401526
+      url = "https://github.com/nixos/nixpkgs/archive/a9245b8f22bb81675d374aed93736930f5109503.tar.gz";
+      sha256 = "sha256:0jcnmb0smaqz7fiyzc51n2cyn9s81h3j285wv47bxifk0rvavca2";
     }) { }
 , ghcVersion ? pkgs.haskellPackages.ghc.version
   # Pass --arg minimal true to disable tools that are not strictly necessary
@@ -59,6 +59,7 @@ in pkgs.mkShell {
   packages = [
     ghc
     pkgs.cabal-install
+    pkgs.ghcid
     (lib.getLib pkgs.openssl)
     # Needed to run `cabal2nix`:
     pkgs.nix-prefetch-scripts

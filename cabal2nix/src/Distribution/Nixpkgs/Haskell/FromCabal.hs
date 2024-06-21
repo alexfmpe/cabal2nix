@@ -22,8 +22,8 @@ import Distribution.Nixpkgs.Haskell.FromCabal.PostProcess (postProcess)
 import qualified Distribution.Nixpkgs.License as Nix
 import qualified Distribution.Nixpkgs.Meta as Nix
 import Distribution.Package
-import Distribution.PackageDescription
-import qualified Distribution.PackageDescription as Cabal
+import Distribution.PackageDescription hiding (condTreeData)
+import qualified Distribution.PackageDescription as Cabal hiding (condTreeData)
 import Distribution.PackageDescription.Configuration as Cabal
 import Distribution.System
 import Distribution.Types.PackageVersionConstraint
@@ -44,7 +44,7 @@ type NixpkgsResolver = Identifier -> Maybe Binding
 
 fromGenericPackageDescription :: HaskellResolver -> NixpkgsResolver -> Platform -> CompilerInfo -> FlagAssignment -> [Constraint] -> GenericPackageDescription -> Derivation
 fromGenericPackageDescription haskellResolver nixpkgsResolver arch compiler flags constraints genDesc =
-  fromPackageDescription haskellResolver nixpkgsResolver missingDeps flags descr
+  fromPackageDescription haskellResolver nixpkgsResolver missingDeps flags descr genDesc
     where
       (descr, missingDeps) = finalizeGenericPackageDescription haskellResolver arch compiler flags constraints genDesc
 
@@ -94,8 +94,8 @@ finalizeGenericPackageDescription haskellResolver arch compiler flags constraint
                 Right (d,_) -> (d,m)
     Right (d,_)  -> (d,[])
 
-fromPackageDescription :: HaskellResolver -> NixpkgsResolver -> [Dependency] -> FlagAssignment -> PackageDescription -> Derivation
-fromPackageDescription haskellResolver nixpkgsResolver missingDeps flags PackageDescription {..} = normalize $ postProcess $ nullDerivation
+fromPackageDescription :: HaskellResolver -> NixpkgsResolver -> [Dependency] -> FlagAssignment -> PackageDescription -> GenericPackageDescription -> Derivation
+fromPackageDescription haskellResolver nixpkgsResolver missingDeps flags (PackageDescription {..}) gen = normalize $ postProcess $ nullDerivation
     & isLibrary .~ isJust library
     & pkgid .~ package
     & revision .~ xrev
@@ -103,11 +103,12 @@ fromPackageDescription haskellResolver nixpkgsResolver missingDeps flags Package
     & isExecutable .~ not (null executables)
     & extraFunctionArgs .~ mempty
     & extraAttributes .~ mempty
-    & libraryDepends .~ foldMap (convertBuildInfo . libBuildInfo) (maybeToList library ++ subLibraries)
-    & executableDepends .~ mconcat (map (convertBuildInfo . buildInfo) executables)
-    & testDepends .~ mconcat (map (convertBuildInfo . testBuildInfo) testSuites)
-    & benchmarkDepends .~ mconcat (map (convertBuildInfo . benchmarkBuildInfo) benchmarks)
-    & Nix.setupDepends .~ maybe mempty convertSetupBuildInfo setupBuildInfo
+    & libraryDepends .~ foldMap (fmap (convertBuildInfo . libBuildInfo)) (maybeToList (condLibrary gen) ++ fmap snd (condSubLibraries gen))
+    & executableDepends .~ convertTree condExecutables (convertBuildInfo . buildInfo)
+    & testDepends .~ convertTree condTestSuites (convertBuildInfo . testBuildInfo)
+    & benchmarkDepends .~ convertTree condBenchmarks (convertBuildInfo . benchmarkBuildInfo)
+    & Nix.setupDepends .~ mempty
+    & Nix.setupDepends . condTreeData .~ foldMap convertSetupBuildInfo setupBuildInfo
     & configureFlags .~ mempty
     & cabalFlags .~ flags
     & runHaddock .~ doHaddockPhase
@@ -142,6 +143,8 @@ fromPackageDescription haskellResolver nixpkgsResolver missingDeps flags Package
                      & Nix.broken .~ not (null missingDeps)
                      )
   where
+    convertTree f g = foldMap (fmap g . snd) (f gen)
+
     xrev = maybe 0 read (lookup "x-revision" customFieldsPD)
 
     nixLicense :: Nix.License
