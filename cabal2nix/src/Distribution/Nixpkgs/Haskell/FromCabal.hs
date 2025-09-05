@@ -44,11 +44,11 @@ type NixpkgsResolver = Identifier -> Maybe Binding
 
 fromGenericPackageDescription :: HaskellResolver -> NixpkgsResolver -> Platform -> CompilerInfo -> FlagAssignment -> [Constraint] -> GenericPackageDescription -> Derivation
 fromGenericPackageDescription haskellResolver nixpkgsResolver arch compiler flags constraints genDesc =
-  fromPackageDescription haskellResolver nixpkgsResolver missingDeps flags descr genDesc
+  fromPackageDescription haskellResolver nixpkgsResolver missingDeps finalisedFlags descr genDesc
     where
-      (descr, missingDeps) = finalizeGenericPackageDescription haskellResolver arch compiler flags constraints genDesc
+      (descr, finalisedFlags, missingDeps) = finalizeGenericPackageDescription haskellResolver arch compiler flags constraints genDesc
 
-finalizeGenericPackageDescription :: HaskellResolver -> Platform -> CompilerInfo -> FlagAssignment -> [Constraint] -> GenericPackageDescription -> (PackageDescription, [Dependency])
+finalizeGenericPackageDescription :: HaskellResolver -> Platform -> CompilerInfo -> FlagAssignment -> [Constraint] -> GenericPackageDescription -> (PackageDescription, FlagAssignment, [Dependency])
 finalizeGenericPackageDescription haskellResolver arch compiler flags constraints genDesc =
   let
     -- finalizePD incooperates the 'LibraryName' of a dependency
@@ -91,8 +91,8 @@ finalizeGenericPackageDescription haskellResolver arch compiler flags constraint
   in case finalize (jailbroken (withInternalLibs haskellResolver)) of
     Left m -> case finalize (const True) of
                 Left _      -> error ("Cabal cannot finalize " ++ display (packageId genDesc))
-                Right (d,_) -> (d,m)
-    Right (d,_)  -> (d,[])
+                Right (d,fs) -> (d,fs,m)
+    Right (d,fs)  -> (d,fs,[])
 
 fromPackageDescription :: HaskellResolver -> NixpkgsResolver -> [Dependency] -> FlagAssignment -> PackageDescription -> GenericPackageDescription -> Derivation
 fromPackageDescription haskellResolver nixpkgsResolver missingDeps flags (PackageDescription {..}) gen = normalize $ postProcess $ nullDerivation

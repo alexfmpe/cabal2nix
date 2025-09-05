@@ -37,7 +37,6 @@ import Language.Nix (ident)
 import Language.Nix.Binding (Binding, localName)
 import "pretty" Text.PrettyPrint.HughesPJClass
 import Data.Maybe (isJust)
-import qualified Debug.Trace as Debug
 
 attr :: String -> Doc -> Doc
 attr n v = text n <+> equals <+> v <> semi
@@ -208,11 +207,9 @@ condTreeAttr n cabalFlags tr = case tree tr of
         Wasi -> is "Wasi"
         Windows -> is "Windows"
         _ -> unknown
-      PackageFlag name -> Left $ isJust $ lookupFlagAssignment (meh name) (meh cabalFlags)
+      PackageFlag name -> Left $ isJust $ lookupFlagAssignment name cabalFlags
 
       where
-        meh x = Debug.trace (show x) x
-
         is :: String -> Either Bool Doc
         is x = Right $ text $ "pkgs.stdenv.hostPlatform.is" ++ x
 
