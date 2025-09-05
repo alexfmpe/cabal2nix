@@ -7,4 +7,4 @@ ghcid \
   -c "cabal repl cabal2nix all" \
   --restart "cabal2nix/cabal2nix.cabal" \
   --reload "cabal2nix/test/golden-test-cases/reflex-dom.cabal" \
-  --test "cabal2nix [\"file:///$root/cabal2nix/test/golden-test-cases/reflex-dom.cabal\"]"
+  --test "cabal2nix [\"file:///$root/cabal2nix/test/golden-test-cases/pointed.cabal\"]"

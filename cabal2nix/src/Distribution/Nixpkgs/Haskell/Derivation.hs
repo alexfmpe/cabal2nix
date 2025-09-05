@@ -159,4 +159,4 @@ instance Pretty Derivation where
 
       postUnpack = string $ "sourceRoot+=/" ++ _subpath ++ "; echo source root reset to $sourceRoot"
 
-      condBuildInfo name bi = onlyIf (bi /= mempty) $ pPrintBuildInfo name bi
+      condBuildInfo name bi = onlyIf (bi /= mempty) $ pPrintBuildInfo name _cabalFlags bi

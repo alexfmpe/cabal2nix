@@ -14,7 +14,7 @@ import Control.DeepSeq
 import Control.Lens
 import Data.Semigroup as Sem
 import Data.Set ( Set )
-import Distribution.PackageDescription (CondTree, ConfVar, Dependency)
+import Distribution.PackageDescription (CondTree, ConfVar, Dependency, FlagAssignment)
 import qualified Distribution.PackageDescription as PackageDescription
 import GHC.Generics ( Generic )
 import Language.Nix
@@ -43,15 +43,15 @@ instance Monoid BuildInfo where
 
 instance NFData BuildInfo
 
-pPrintBuildInfo :: String -> CondTree ConfVar [Dependency] BuildInfo -> Doc
-pPrintBuildInfo prefix tree = vcat
+pPrintBuildInfo :: String -> FlagAssignment -> CondTree ConfVar [Dependency] BuildInfo -> Doc
+pPrintBuildInfo prefix cabalFlags tree = vcat
   [ f _haskell   "HaskellDepends"
   , f _system    "SystemDepends"
   , f _pkgconfig "PkgconfigDepends"
   , f _tool      "ToolDepends"
   ]
   where
-    f field suffix = condTreeAttr (prefix++suffix) $ fmap field tree
+    f field suffix = condTreeAttr (prefix++suffix) cabalFlags $ fmap field tree
 
 
 condTreeData :: Lens' (CondTree v c a) a

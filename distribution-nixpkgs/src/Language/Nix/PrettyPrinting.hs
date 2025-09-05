@@ -31,11 +31,13 @@ import Data.Function
 import Data.List (sortBy)
 import Data.Set ( Set )
 import qualified Data.Set as Set
-import Distribution.PackageDescription (CondBranch(..), Condition (..), CondTree(CondNode), ConfVar (..), Dependency)
+import Distribution.PackageDescription (CondBranch(..), Condition (..), CondTree(CondNode), ConfVar (..), Dependency, FlagAssignment, lookupFlagAssignment, unFlagAssignment)
 import Distribution.System (OS(..), Arch (..))
 import Language.Nix (ident)
 import Language.Nix.Binding (Binding, localName)
 import "pretty" Text.PrettyPrint.HughesPJClass
+import Data.Maybe (isJust)
+import qualified Debug.Trace as Debug
 
 attr :: String -> Doc -> Doc
 attr n v = text n <+> equals <+> v <> semi
@@ -130,8 +132,8 @@ ppDeps = \case
       List {} -> id
       Optionals {} -> parens
 
-condTreeAttr :: String -> CondTree ConfVar [Dependency] (Set Binding) -> Doc
-condTreeAttr n tr = case tree tr of
+condTreeAttr :: String -> FlagAssignment -> CondTree ConfVar [Dependency] (Set Binding) -> Doc
+condTreeAttr n cabalFlags tr = case tree tr of
   List [] -> mempty
   List xs -> list mempty xs
   ConcatLists xs -> list (text "builtins.concatLists") xs
@@ -167,7 +169,7 @@ condTreeAttr n tr = case tree tr of
 
     condition :: Condition ConfVar -> Either Bool Doc
     condition = \case
-      Var v -> maybe (Left False) Right $ var v
+      Var v -> var v
       Lit a -> Left a
       CNot a -> unary "!" not a
       COr a b -> binary "||" (||) False a b
@@ -184,7 +186,7 @@ condTreeAttr n tr = case tree tr of
             False -> Left r
             True -> Right l
 
-    var :: ConfVar -> Maybe Doc
+    var :: ConfVar -> Either Bool Doc
     var = \case
       Arch x -> case x of
         AArch64 -> is "Aarch64"
@@ -193,7 +195,7 @@ condTreeAttr n tr = case tree tr of
         X86_64 -> is "x86_64"
         Wasm32 -> is "Wasm"
         _ -> unknown
-      Impl {} -> Nothing
+      Impl {} -> unknown
       OS x -> case x of
         Android -> is "Android"
         FreeBSD -> is "FreeBSD"
@@ -206,11 +208,13 @@ condTreeAttr n tr = case tree tr of
         Wasi -> is "Wasi"
         Windows -> is "Windows"
         _ -> unknown
-      PackageFlag {} -> Nothing
+      PackageFlag name -> Left $ isJust $ lookupFlagAssignment (meh name) (meh cabalFlags)
 
       where
-        is :: String -> Maybe Doc
-        is x = Just $ text $ "pkgs.stdenv.hostPlatform.is" ++ x
+        meh x = Debug.trace (show x) x
 
-        unknown :: Maybe Doc
-        unknown = Nothing
+        is :: String -> Either Bool Doc
+        is x = Right $ text $ "pkgs.stdenv.hostPlatform.is" ++ x
+
+        unknown :: Either Bool Doc
+        unknown = Left False
