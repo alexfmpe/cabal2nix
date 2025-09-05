@@ -149,13 +149,25 @@ condTreeAttr n cabalFlags tr = case tree tr of
       ([], []) -> List []
       (xs, []) -> List xs
       ([], [y]) -> y
-      ([], ys) -> ConcatLists ys
-      (xs, ys) -> ConcatLists $ List xs : ys
+      ([], ys) -> lists ys
+      (xs, ys) -> lists $ List xs : ys
       where
         name = view (localName . ident)
         nodes = node <$> toAscListSortedOn name d
         node = Attribute . text . name
         canon = filter (/= List []) . map branch
+
+        isAttr = \case
+          Attribute {} -> True
+          _ -> False
+
+        exclusivelyAttrs = \case
+          List xs | all isAttr xs -> Just xs
+          _ -> Nothing
+
+        lists xs = case traverse exclusivelyAttrs xs of
+          Nothing -> ConcatLists xs
+          Just ys -> List $ concat ys
 
     branch :: CondBranch ConfVar [Dependency] (Set Binding) -> Deps
     branch (CondBranch c true mfalse) = case (condition c, tree true, maybe (List []) tree mfalse) of

@@ -120,7 +120,7 @@ instance Pretty Derivation where
       , onlyIf (_subpath /= ".") $ attr "postUnpack" postUnpack
       , onlyIf (_revision > 0) $ attr "revision" $ doubleQuotes $ int _revision
       , onlyIf (not (null _editedCabalFile) && _revision > 0) $ attr "editedCabalFile" $ string _editedCabalFile
-      , listattr "configureFlags" empty (map (show . show) renderedFlags)
+      -- , listattr "configureFlags" empty (map (show . show) renderedFlags) --TODO: no longer no-op
       , boolattr "isLibrary" (not _isLibrary || _isExecutable) _isLibrary
       , boolattr "isExecutable" (not _isLibrary || _isExecutable) _isExecutable
       , boolattr "enableSeparateDataOutput" _enableSeparateDataOutput _enableSeparateDataOutput
