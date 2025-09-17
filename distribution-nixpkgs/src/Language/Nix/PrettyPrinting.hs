@@ -207,15 +207,15 @@ condTreeAttr n cabalFlags tr = case tree tr of
 
     var :: ConfVar -> Either Bool Doc
     var = \case
-      Arch x -> dismiss $ case x of
+      Arch x -> case x of
         AArch64 -> is "Aarch64"
         JavaScript -> is "Ghcjs"
         PPC64 -> is "Power64"
         X86_64 -> is "x86_64"
         Wasm32 -> is "Wasm"
         _ -> unknown
-      Impl flavor _ -> dismiss $ Left $ flavor == GHC
-      OS x -> dismiss $ case x of
+      Impl flavor _ -> Left $ flavor == GHC
+      OS x -> case x of
         Android -> is "Android"
         FreeBSD -> is "FreeBSD"
         Ghcjs -> is "Ghcjs"
