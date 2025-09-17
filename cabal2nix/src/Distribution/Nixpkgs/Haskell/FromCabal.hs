@@ -38,6 +38,7 @@ import Distribution.Types.UnqualComponentName as Cabal
 import Distribution.Utils.ShortText ( fromShortText )
 import Distribution.Version
 import Language.Nix
+import qualified Debug.Trace as Debug
 
 #if MIN_VERSION_Cabal(3,16,0)
 import Distribution.Types.MissingDependency ( MissingDependency(MissingDependency) )
@@ -125,9 +126,9 @@ fromPackageDescription haskellResolver nixpkgsResolver missingDeps flags (Packag
     & extraFunctionArgs .~ mempty
     & extraAttributes .~ mempty
     & libraryDepends .~ foldMap (fmap (convertBuildInfo . libBuildInfo)) (maybeToList (condLibrary gen) ++ fmap snd (condSubLibraries gen))
-    & executableDepends .~ convertTree condExecutables (convertBuildInfo . buildInfo)
-    & testDepends .~ convertTree condTestSuites (convertBuildInfo . testBuildInfo)
-    & benchmarkDepends .~ convertTree condBenchmarks (convertBuildInfo . benchmarkBuildInfo)
+    & executableDepends .~ convertTree condExecutables buildInfo
+    & testDepends .~ convertTree (\x -> trace (condTestSuites x)) testBuildInfo
+    & benchmarkDepends .~ convertTree condBenchmarks benchmarkBuildInfo
     & Nix.setupDepends .~ mempty
     & Nix.setupDepends . condTreeData .~ foldMap convertSetupBuildInfo setupBuildInfo
     & configureFlags .~ mempty
@@ -164,7 +165,8 @@ fromPackageDescription haskellResolver nixpkgsResolver missingDeps flags (Packag
                      & Nix.broken .~ not (null missingDeps)
                      )
   where
-    convertTree f g = foldMap (fmap g . snd) (f gen)
+    trace x = Debug.trace (show x) x
+    convertTree component buildInfo = foldMap (fmap (convertBuildInfo . buildInfo) . snd) (component gen)
 
     xrev = maybe 0 read (lookup "x-revision" customFieldsPD)
 

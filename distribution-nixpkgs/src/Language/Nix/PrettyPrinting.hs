@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Internal pretty-printing helpers for Nix expressions.
 
@@ -39,6 +40,8 @@ import Language.Nix.Binding (Binding, localName)
 import "pretty" Text.PrettyPrint.HughesPJClass
 import Data.Maybe (isJust)
 import Data.Semigroup (Arg(..))
+import qualified Debug.Trace as Debug
+import Control.Monad (guard, join)
 
 attr :: String -> Doc -> Doc
 attr n v = text n <+> equals <+> v <> semi
@@ -176,9 +179,9 @@ condTreeAttr n cabalFlags tr = case tree tr of
 
     branch :: CondBranch ConfVar [Dependency] (Set Binding) -> Deps
     branch (CondBranch c true mfalse) = case (condition c, tree true, maybe (List []) tree mfalse) of
-      (_, List [], List []) -> List []
       (Left True,  t, _) -> t
       (Left False, _, f) -> f
+      (Right _, List [], List []) -> List [] --TODO: make first?
       (Right d, List [], f) -> Optionals (text "!" <> d) f
       (Right d, t, List []) -> Optionals d t
       (Right d, t, f) -> IfThenElse d t f
@@ -204,15 +207,15 @@ condTreeAttr n cabalFlags tr = case tree tr of
 
     var :: ConfVar -> Either Bool Doc
     var = \case
-      Arch x -> case x of
+      Arch x -> dismiss $ case x of
         AArch64 -> is "Aarch64"
         JavaScript -> is "Ghcjs"
         PPC64 -> is "Power64"
         X86_64 -> is "x86_64"
         Wasm32 -> is "Wasm"
         _ -> unknown
-      Impl flavor _ -> Left $ flavor == GHC
-      OS x -> case x of
+      Impl flavor _ -> dismiss $ Left $ flavor == GHC
+      OS x -> dismiss $ case x of
         Android -> is "Android"
         FreeBSD -> is "FreeBSD"
         Ghcjs -> is "Ghcjs"
@@ -224,11 +227,14 @@ condTreeAttr n cabalFlags tr = case tree tr of
         Wasi -> is "Wasi"
         Windows -> is "Windows"
         _ -> unknown
-      PackageFlag name -> Left $ isJust $ lookupFlagAssignment name cabalFlags
+      PackageFlag name -> Left $ isJust $ lookupFlagAssignment name $ trace cabalFlags cabalFlags
 
       where
+        dismiss x = if True then Left False else x
         is :: String -> Either Bool Doc
         is x = Right $ text $ "pkgs.stdenv.hostPlatform.is" ++ x
 
         unknown :: Either Bool Doc
         unknown = Left False
+
+trace x y = Debug.trace (show x) y

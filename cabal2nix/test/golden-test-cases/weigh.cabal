@@ -46,6 +46,7 @@ test-suite weigh-test
 test-suite weigh-maps
   if !flag(weigh-maps)
     buildable: False
+    build-depends: lens
   default-language:    Haskell2010
   type: exitcode-stdio-1.0
   hs-source-dirs: src/test
