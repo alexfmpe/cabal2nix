@@ -99,7 +99,7 @@ funargs xs = sep [
              ]
 
 data Tree a where
-  Attribute :: String -> Tree String
+  Node :: String -> Tree String
   List :: [Tree a] -> Tree a
   ConcatLists :: [Tree a] -> Tree a
   Optionals :: Doc -> Tree a -> Tree a
@@ -109,7 +109,7 @@ deriving instance Eq a => Eq (Tree a)
 
 ppDeps :: Tree String -> Doc
 ppDeps = \case
-  Attribute x -> text x
+  Node x -> text x
   List xs -> sep
     [ lbrack
     , nest 2 $ fsep $ fmap go xs
@@ -132,7 +132,7 @@ ppDeps = \case
     ]
   where
     go x = ppDeps x & case x of
-      Attribute {} -> id
+      Node {} -> id
       ConcatLists {} -> parens
       IfThenElse {} -> parens
       List {} -> id
@@ -161,11 +161,11 @@ condTreeAttr n cabalFlags tr = case tree tr of
       where
         name = view (localName . ident)
         nodes = node <$> toAscListSortedOn name d
-        node = Attribute . name
+        node = Node . name
         canon = filter (/= List []) . map branch
 
         getAttr (dep :: Tree String) = case dep of
-          Attribute doc -> Just $ Arg doc dep
+          Node doc -> Just $ Arg doc dep
           _ -> Nothing
 
         exclusivelyAttrs = \case
