@@ -3,6 +3,7 @@
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- | Internal pretty-printing helpers for Nix expressions.
 
@@ -97,15 +98,16 @@ funargs xs = sep [
                rbrace <> colon
              ]
 
-data Deps where
-  Attribute :: String -> Deps
-  List :: [Deps] -> Deps
-  ConcatLists :: [Deps] -> Deps
-  Optionals :: Doc -> Deps -> Deps
-  IfThenElse :: Doc -> Deps -> Deps -> Deps
-  deriving Eq
+data Tree a where
+  Attribute :: String -> Tree String
+  List :: [Tree a] -> Tree a
+  ConcatLists :: [Tree a] -> Tree a
+  Optionals :: Doc -> Tree a -> Tree a
+  IfThenElse :: Doc -> Tree a -> Tree a -> Tree a
 
-ppDeps :: Deps -> Doc
+deriving instance Eq a => Eq (Tree a)
+
+ppDeps :: Tree String -> Doc
 ppDeps = \case
   Attribute x -> text x
   List xs -> sep
@@ -149,7 +151,7 @@ condTreeAttr n cabalFlags tr = case tree tr of
   where
     list prefix = listattrDoc n prefix . fmap ppDeps
 
-    tree :: CondTree ConfVar [Dependency] (Set Binding) -> Deps
+    tree :: CondTree ConfVar [Dependency] (Set Binding) -> Tree String
     tree (CondNode d _ branches) = case (nodes, canon branches) of
       ([], []) -> List []
       (xs, []) -> List xs
@@ -162,7 +164,7 @@ condTreeAttr n cabalFlags tr = case tree tr of
         node = Attribute . name
         canon = filter (/= List []) . map branch
 
-        getAttr dep = case dep of
+        getAttr (dep :: Tree String) = case dep of
           Attribute doc -> Just $ Arg doc dep
           _ -> Nothing
 
@@ -177,7 +179,7 @@ condTreeAttr n cabalFlags tr = case tree tr of
               argKey (Arg k _) = k
               argVal (Arg _ v) = v
 
-    branch :: CondBranch ConfVar [Dependency] (Set Binding) -> Deps
+    branch :: CondBranch ConfVar [Dependency] (Set Binding) -> Tree String
     branch (CondBranch c true mfalse) = case (condition c, tree true, maybe (List []) tree mfalse) of
       (Left True,  t, _) -> t
       (Left False, _, f) -> f
