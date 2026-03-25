@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE CPP #-}
 
-module Main ( main ) where
+module Main ( main, fastTest ) where
 
 import Distribution.Nixpkgs.Fetch
 import Distribution.Nixpkgs.Haskell.Derivation
@@ -48,6 +48,9 @@ main = do
     [ libraryTests testCases
     , executableTests cabal2nix testCases
     ]
+
+fastTest :: FilePath -> ([FilePath] -> [FilePath]) -> IO ()
+fastTest root modifier = defaultMain . libraryTests . modifier =<< listTestCases root
 
 findCabal2nix :: IO FilePath
 findCabal2nix = findExecutable "cabal2nix" >>= \case

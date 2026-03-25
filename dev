@@ -1,0 +1,15 @@
+root=$(pwd)
+
+ghcid \
+  -c 'cabal repl --enable-multi-repl cabal2nix:regression-test all' \
+  --test 'GHC.Conc.setNumCapabilities =<< GHC.Conc.getNumProcessors' \
+  --test 'Main.fastTest "cabal2nix" id' \
+  --restart 'cabal2nix/cabal2nix.cabal' \
+  --restart 'distribution-nixpkgs/distribution-nixpkgs.cabal' \
+  --restart 'hackage-db/hackage-db.cabal' \
+  --restart 'language-nix/language-nix.cabal' \
+  --warnings
+
+#  -c 'cabal repl --enable-multi-repl cabal2nix all' \
+#  --test "cabal2nix [\"file:///$root/cabal2nix/test/golden-test-cases/butcher.cabal\"]" \
+#  --reload 'cabal2nix/test/golden-test-cases/zlib.cabal' \
