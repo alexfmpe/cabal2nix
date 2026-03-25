@@ -33,7 +33,7 @@ import System.FilePath
 import System.Process
 import Test.Tasty
 import Test.Tasty.Golden
-import Text.PrettyPrint.HughesPJClass
+import Text.PrettyPrint.HughesPJClass ( prettyShow )
 
 main :: IO ()
 main = do
@@ -42,14 +42,26 @@ main = do
   --
   -- TODO: Run this test without $HOME defined to ensure that we don't need that variable.
   -- TODO: make test suite independent of working directory somehow
-  cabal2nix <- findExecutable "cabal2nix" >>= \case
+  cabal2nix <- findCabal2nix
+  testCases <- listTestCases "."
+  defaultMain $ testGroup "regression-tests"
+    [ libraryTests testCases
+    , executableTests cabal2nix testCases
+    ]
+
+findCabal2nix :: IO FilePath
+findCabal2nix = findExecutable "cabal2nix" >>= \case
     Nothing -> fail "cannot find 'cabal2nix' in $PATH"
     Just exe -> pure exe
-  testCases <- listDirectoryFilesBySuffix ".cabal" "test/golden-test-cases"
-  defaultMain $ testGroup "regression-tests"
-    [ testGroup "cabal2nix library" (map testLibrary testCases)
-    , testGroup "cabal2nix executable" (map (testExecutable cabal2nix) testCases)
-    ]
+
+listTestCases :: FilePath -> IO [FilePath]
+listTestCases root = listDirectoryFilesBySuffix ".cabal" $ root <> "/test/golden-test-cases"
+
+libraryTests :: [FilePath] -> TestTree
+libraryTests = testGroup "cabal2nix library" . map testLibrary
+
+executableTests :: FilePath -> [FilePath] -> TestTree
+executableTests cabal2nix = testGroup "cabal2nix executable" . map (testExecutable cabal2nix)
 
 testLibrary :: String -> TestTree
 testLibrary cabalFile = do
