@@ -21,7 +21,11 @@ source-repository head
   location: https://github.com/NixOS/cabal2nix
   subdir:   language-nix
 
+common defaults
+  ghc-options: -prof -fprof-auto
+
 library
+  import: defaults
   exposed-modules:  Language.Nix
                     Language.Nix.Binding
                     Language.Nix.Identifier
